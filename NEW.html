@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>2248 Long Links (Bağımlılık Yapan Versiyon)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Stil tanımları öncekiyle aynı kalabilir */
+    canvas {
+      display: block;
+      margin: 0 auto;
+      border-radius: 15px;
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+      touch-action: none; /* Dokunmatik kaydırmayı engelle */
+      background-color: #f8fafc; /* Canvas arka planı */
+    }
+    .modal {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background-color: rgba(0, 0, 0, 0.7); z-index: 50; align-items: center; justify-content: center;
+    }
+    .modal-content {
+      background: linear-gradient(135deg, #ffffff, #f1f5f9); padding: 2rem; border-radius: 15px;
+      max-width: 90%; max-height: 80%; overflow-y: auto; box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+    }
+    /* Anlık skor mesajı için stil */
+    .score-popup {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) scale(1.5);
+        padding: 8px 16px;
+        background-color: rgba(76, 29, 149, 0.85); /* Mor tonu */
+        color: white;
+        font-size: 1.5rem;
+        font-weight: bold;
+        border-radius: 10px;
+        z-index: 100; /* Canvas üzerinde görünmesi için */
+        opacity: 0;
+        transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+        pointer-events: none; /* Tıklamayı engellemesin */
+    }
+    .score-popup.show {
+        opacity: 1;
+        transform: translate(-50%, -100%) scale(1); /* Yukarı kayarak çıksın */
+    }
+
+  </style>
+</head>
+<body class="bg-gray-100 font-sans">
+  <div id="home" class="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 text-white relative overflow-hidden">
+    <div class="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1MCIgaGVpZ2h0PSI1MCIgb3BhY2l0eT0iMC4zIj4KICA8cGF0aCBkPSJNMCwwSDUwVjUwSDBWMG0yNSwyNUg1MHYyNUgwdi0yNSIvPgogIDxwYXRoIGQ9Ik0wLDBoMjV2MjVIMHoiIGZpbGw9IndoaXRlIi8+Cjwvc3ZnPg==')] opacity-10"></div>
+    <h1 class="text-6xl md:text-8xl font-extrabold mb-6 animate-pulse">2248 Long Links</h1>
+    <p class="text-xl md:text-2xl mb-8 text-center max-w-lg">Kombuları patlat, bombaları kullan, en uzun zinciri kur ve bağımlısı ol!</p>
+    <div class="flex flex-col md:flex-row gap-4 mb-6">
+      <button id="startGame" class="bg-white text-indigo-600 px-8 py-4 rounded-full font-semibold text-lg hover:bg-indigo-100 transition transform hover:scale-105">Oyuna Başla</button>
+      <button id="howToPlayBtn" class="bg-transparent border-2 border-white text-white px-8 py-4 rounded-full font-semibold text-lg hover:bg-white hover:text-indigo-600 transition transform hover:scale-105">Nasıl Oynanır?</button>
+    </div>
+    <div class="text-lg font-semibold">
+      <span>En Yüksek Skor: </span><span id="maxScoreDisplay">0</span>
+    </div>
+  </div>
+
+  <div id="game" class="hidden min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-gray-100 to-gray-300 py-8 relative"> <div class="mb-6 text-center">
+      <h2 class="text-4xl font-bold text-gray-800">Seviye: <span id="level">1</span></h2>
+      <p class="text-2xl text-gray-600">Skor: <span id="score">0</span></p>
+      <p class="text-lg text-gray-500">Hedef: <span id="targetDisplay">256</span></p>
+      <p class="text-xl text-purple-700 font-bold">Kombo: x<span id="comboMultiplier">1</span></p> </div>
+    <div class="relative"> <canvas id="gameCanvas"></canvas>
+        <div id="scorePopup" class="score-popup"></div> </div>
+    <button id="backToHome" class="mt-6 bg-indigo-600 text-white px-6 py-3 rounded-full font-semibold hover:bg-indigo-700 transition transform hover:scale-105">Ana Sayfaya Dön</button>
+  </div>
+
+  <div id="howToPlayModal" class="modal">
+    <div class="modal-content relative">
+      <span id="closeModal" class="absolute top-2 right-4 text-gray-600 text-3xl cursor-pointer hover:text-gray-800">×</span>
+      <h2 class="text-3xl font-bold mb-4 text-gray-800">Nasıl Oynanır? (Bağımlılık Yapan Versiyon)</h2>
+      <p class="text-gray-600 mb-4">Amaç aynı: Aynı sayıları birleştirerek hedef sayıya ulaşmak. Ama şimdi daha fazlası var:</p>
+      <ul class="list-disc list-inside text-gray-600 space-y-3">
+          <li><strong>Zincir & Birleştir:</strong> Dokun/tıkla ve aynı sayıdaki bitişik kutucuklarda gezin. Parmağını/fareyi kaldırınca zincir birleşir, son kutucuk 2 katı değer alır.</li>
+          <li><strong>Uzun Zincir Bonusu:</strong> Zincirin ne kadar uzunsa, puan çarpanın o kadar artar! (Örn: 5+ zincir 1.5x, 8+ zincir 2x puan!)</li>
+          <li><strong>Kombular!:</strong> Birleştirmeden sonra düşen kutucuklar otomatik olarak yeni birleşmeler yaparsa KOMBO olur! Her kombo adımı skor çarpanını artırır (x2, x3...). Komboları planla!</li>
+          <li><strong>💣 Bomba Kutucuğu:</strong> Nadiren çıkan bu kutucuğa dokun/tıkla (zincire ekleme!). Etrafındaki 3x3 alanı temizler. Sıkışınca harika!</li>
+          <li><strong>Yerçekimi & Yeni Kutucuklar:</strong> Boşalan yerlere yukarıdakiler düşer, en üste yenileri gelir.</li>
+          <li><strong>Hedef & Seviye:</strong> Hedef sayıya ulaşınca seviye atlarsın. Yeni hedef daha yüksek olur.</li>
+          <li><strong>Oyun Sonu:</strong> Tahtada birleştirme yapacak hamle kalmazsa oyun biter.</li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    // --- Sabitler ve Ayarlar ---
+    const GRID_SIZE = 5;
+    const INITIAL_TARGET = 256;
+    const FINAL_TARGET = 8192; // Oyunu kazanma hedefi (isteğe bağlı)
+    const BOMB_TILE_VALUE = -1; // Bomba kutucuğunu temsil eden değer
+    const BOMB_SPAWN_CHANCE = 0.02; // %2 ihtimalle bomba gelme şansı
+
+    // --- DOM Elementleri ---
+    const homeScreen = document.getElementById('home');
+    const gameScreen = document.getElementById('game');
+    const startGameBtn = document.getElementById('startGame');
+    const backToHomeBtn = document.getElementById('backToHome');
+    const howToPlayBtn = document.getElementById('howToPlayBtn');
+    const howToPlayModal = document.getElementById('howToPlayModal');
+    const closeModal = document.getElementById('closeModal');
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const levelDisplay = document.getElementById('level');
+    const scoreDisplay = document.getElementById('score');
+    const targetDisplay = document.getElementById('targetDisplay');
+    const maxScoreDisplay = document.getElementById('maxScoreDisplay');
+    const comboMultiplierDisplay = document.getElementById('comboMultiplier'); // Kombo göstergesi
+    const scorePopup = document.getElementById('scorePopup'); // Anlık skor popup'ı
+
+    // --- Oyun Değişkenleri ---
+    let level = 1;
+    let score = 0;
+    let maxScore = localStorage.getItem('maxScore') ? parseInt(localStorage.getItem('maxScore')) : 0;
+    let grid = [];
+    let tileSize = 70;
+    let gap = 8;
+    let baseNumber = 2;
+    let targetNumber = INITIAL_TARGET;
+
+    let selectedTiles = [];
+    let isSelecting = false;
+    let isGameOver = false;
+    let currentSelectionValue = 0;
+    let currentComboMultiplier = 1; // Mevcut kombo çarpanı
+    let interactionLocked = false; // Animasyon veya kombo sırasında etkileşimi kilitle
+
+    maxScoreDisplay.textContent = maxScore;
+
+    //--- Renkler ---
+    const colors = {
+        2: '#f87171', 4: '#fb923c', 8: '#facc15', 16: '#a3e635',
+        32: '#4ade80', 64: '#34d399', 128: '#2dd4bf', 256: '#60a5fa',
+        512: '#818cf8', 1024: '#a78bfa', 2048: '#e879f9', 4096: '#f472b6',
+        8192: '#fb7185', 16384: '#ef4444',
+        [BOMB_TILE_VALUE]: '#4b5563', // Gri bomba rengi
+        'default': '#7f1d1d', 'empty': '#cbd5e1', 'line': 'rgba(255, 255, 255, 0.8)',
+        'text': '#ffffff'
+    };
+
+    function getTileColor(value) {
+      return colors[value] || colors['default'];
+    }
+
+    // --- Canvas Boyutlandırma ---
+    function resizeCanvas() {
+        const maxCanvasWidth = Math.min(window.innerWidth * 0.9, 450); // Biraz daha küçük
+        const totalGap = (GRID_SIZE + 1) * gap;
+        tileSize = Math.floor((maxCanvasWidth - totalGap) / GRID_SIZE);
+        gap = Math.floor(tileSize * 0.1); // Boşluğu da dinamik yapalım
+        tileSize = Math.floor((maxCanvasWidth - (GRID_SIZE + 1) * gap) / GRID_SIZE); // Tekrar hesapla
+
+        const canvasSize = GRID_SIZE * tileSize + (GRID_SIZE + 1) * gap;
+        canvas.width = canvasSize;
+        canvas.height = canvasSize;
+        drawGrid();
+    }
+
+    // --- Skor Popup Gösterimi ---
+    function showScorePopup(points, multiplier = 1) {
+        let message = `+${points}`;
+        if (multiplier > 1) {
+            message += ` x${multiplier}!`;
+        }
+        scorePopup.textContent = message;
+        scorePopup.classList.add('show');
+        // Kısa süre sonra gizle
+        setTimeout(() => {
+            scorePopup.classList.remove('show');
+        }, 600); // Animasyon süresiyle eşleşmeli
+    }
+
+    // --- Oyun Başlatma ve Grid İşlemleri ---
+    function initializeGrid() {
+        grid = Array(GRID_SIZE).fill().map(() => Array(GRID_SIZE).fill(0));
+        const initialFillCount = Math.floor(GRID_SIZE * GRID_SIZE * 0.7);
+        let placed = 0;
+        while(placed < initialFillCount) {
+            const i = Math.floor(Math.random() * GRID_SIZE);
+            const j = Math.floor(Math.random() * GRID_SIZE);
+            if (grid[i][j] === 0) {
+                grid[i][j] = getRandomTileValue(true); // Başlangıçta bomba olmasın
+                placed++;
+            }
+        }
+        isGameOver = false;
+        selectedTiles = [];
+        isSelecting = false;
+        currentComboMultiplier = 1;
+        interactionLocked = false;
+    }
+
+    function getRandomTileValue(isInitial = false) {
+        // Başlangıçta veya belirli bir olasılıkla bomba verme
+        if (!isInitial && Math.random() < BOMB_SPAWN_CHANCE) {
+            return BOMB_TILE_VALUE;
+        }
+        // Normal sayı üretimi (önceki gibi)
+        const possibleNumbers = [2, 4, 8, 16].filter(num => num <= Math.max(baseNumber * 2, 16));
+        return possibleNumbers[Math.floor(Math.random() * possibleNumbers.length)];
+    }
+
+    // --- Yerçekimi ve Yeni Kutucuk Ekleme ---
+    async function applyGravityAndRefill() {
+        interactionLocked = true; // Yerçekimi başlarken kilitle
+        let tilesMoved = false;
+        let newTilesAdded = false;
+
+        // Yerçekimi
+        for (let j = 0; j < GRID_SIZE; j++) {
+            let emptyRow = GRID_SIZE - 1;
+            for (let i = GRID_SIZE - 1; i >= 0; i--) {
+                if (grid[i][j] !== 0) {
+                    if (i !== emptyRow) {
+                        grid[emptyRow][j] = grid[i][j];
+                        grid[i][j] = 0;
+                        tilesMoved = true;
+                    }
+                    emptyRow--;
+                }
+            }
+        }
+
+        // Yeni kutucukları ekle
+        for (let j = 0; j < GRID_SIZE; j++) {
+            // Sadece en üstteki boşluklara ekle
+             for (let i = 0; i < GRID_SIZE; i++) {
+                 if (grid[i][j] === 0) {
+                    grid[i][j] = getRandomTileValue();
+                    newTilesAdded = true;
+                 } else {
+                    break; // Bu sütun doldu
+                 }
+             }
+        }
+
+        // Görsel gecikme (isteğe bağlı, animasyon hissi için)
+        if (tilesMoved || newTilesAdded) {
+             drawGrid(); // Hemen çiz
+             await new Promise(resolve => setTimeout(resolve, 100)); // Kısa bir bekleme
+        }
+
+        interactionLocked = false; // Yerçekimi bitince kilidi aç
+        return tilesMoved || newTilesAdded;
+    }
+
+    // --- Çizim İşlemleri ---
+    function drawGrid() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#e2e8f0'; // Açık gri arka plan
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+
+        for (let i = 0; i < GRID_SIZE; i++) {
+            for (let j = 0; j < GRID_SIZE; j++) {
+                const value = grid[i][j];
+                const x = j * (tileSize + gap) + gap;
+                const y = i * (tileSize + gap) + gap;
+
+                // Kutucuk Arkaplanı
+                ctx.fillStyle = value === 0 ? colors['empty'] : getTileColor(value);
+                ctx.beginPath();
+                if (ctx.roundRect) { ctx.roundRect(x, y, tileSize, tileSize, tileSize * 0.15); }
+                else { ctx.rect(x, y, tileSize, tileSize); } // Fallback
+                ctx.fill();
+
+                // Seçiliyse vurgu
+                if (isSelecting && selectedTiles.some(p => p.i === i && p.j === j)) {
+                    ctx.fillStyle = "rgba(255, 255, 255, 0.3)"; // Daha belirgin vurgu
+                    ctx.beginPath();
+                     if (ctx.roundRect) { ctx.roundRect(x, y, tileSize, tileSize, tileSize * 0.15); } else { ctx.rect(x, y, tileSize, tileSize); }
+                    ctx.fill();
+                }
+
+                // Kutucuk Değeri veya Bomba Simgesi
+                if (value !== 0) {
+                    const fontSize = Math.min(tileSize * 0.4, 28); // Font boyutu ayarı
+                    ctx.font = `bold ${fontSize}px Arial, sans-serif`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+
+                    if (value === BOMB_TILE_VALUE) {
+                        // Basit bir bomba emojisi veya çizimi
+                        ctx.fillStyle = '#f1f5f9'; // Açık renk yazı
+                        ctx.fillText("💣", x + tileSize / 2, y + tileSize / 2 + 2);
+                    } else {
+                        ctx.fillStyle = colors['text'];
+                        ctx.fillText(value, x + tileSize / 2, y + tileSize / 2 + 2);
+                    }
+                }
+            }
+        }
+
+        // Seçim Çizgisi
+        if (isSelecting && selectedTiles.length > 1) {
+            ctx.strokeStyle = colors['line'];
+            ctx.lineWidth = Math.max(5, tileSize * 0.1);
+            ctx.lineCap = "round";
+            ctx.lineJoin = "round";
+            ctx.beginPath();
+            for (let k = 0; k < selectedTiles.length; k++) {
+                const { i, j } = selectedTiles[k];
+                const x = j * (tileSize + gap) + gap + tileSize / 2;
+                const y = i * (tileSize + gap) + gap + tileSize / 2;
+                if (k === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+    }
+
+    // --- Etkileşim İşlemleri ---
+    function getTilePositionFromEvent(event) {
+        // Önceki kodla aynı
+        const rect = canvas.getBoundingClientRect();
+        let clientX, clientY;
+        if (event.touches && event.touches.length > 0) { clientX = event.touches[0].clientX; clientY = event.touches[0].clientY; }
+        else if (event.changedTouches && event.changedTouches.length > 0) { clientX = event.changedTouches[0].clientX; clientY = event.changedTouches[0].clientY; } // touchend için
+        else { clientX = event.clientX; clientY = event.clientY; }
+        if (clientX === undefined) return null;
+
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        const x = (clientX - rect.left) * scaleX;
+        const y = (clientY - rect.top) * scaleY;
+        const j = Math.floor((x - gap / 2) / (tileSize + gap));
+        const i = Math.floor((y - gap / 2) / (tileSize + gap));
+        if (i >= 0 && i < GRID_SIZE && j >= 0 && j < GRID_SIZE) { return { i, j }; }
+        return null;
+    }
+
+    function handleInteractionStart(event) {
+        if (isGameOver || interactionLocked || isSelecting) return; // Zaten seçim yapılıyorsa veya kilitliyse başlama
+        const pos = getTilePositionFromEvent(event);
+        if (!pos) return;
+
+        const tileValue = grid[pos.i][pos.j];
+
+        // Bomba Tıklaması Kontrolü
+        if (tileValue === BOMB_TILE_VALUE) {
+            activateBomb(pos.i, pos.j);
+            // Bomba patladıktan sonra zincir seçimi başlamasın
+            return;
+        }
+
+        // Normal Zincir Başlangıcı
+        if (tileValue === 0) return; // Boş alana tıklandı
+
+        isSelecting = true;
+        currentSelectionValue = tileValue;
+        selectedTiles = [{ i: pos.i, j: pos.j, value: currentSelectionValue }];
+        drawGrid();
+    }
+
+    function handleInteractionMove(event) {
+        if (!isSelecting || isGameOver || interactionLocked) return;
+        // Önceki kodla büyük ölçüde aynı, bomba kontrolü yok
+         const pos = getTilePositionFromEvent(event);
+        if (!pos) return;
+
+        const lastTile = selectedTiles[selectedTiles.length - 1];
+        if (pos.i === lastTile.i && pos.j === lastTile.j) return; // Aynı kutucuk
+
+        if (areTilesAdjacent(pos, lastTile)) {
+            // Zincire eklenecek kutucuk bomba olamaz
+            if (grid[pos.i][pos.j] === currentSelectionValue) {
+                const alreadySelected = selectedTiles.findIndex(p => p.i === pos.i && p.j === pos.j);
+                if (alreadySelected === -1) {
+                    selectedTiles.push({ i: pos.i, j: pos.j, value: currentSelectionValue });
+                } else if (alreadySelected === selectedTiles.length - 2) {
+                    selectedTiles.pop();
+                }
+                 drawGrid();
+            }
+        }
+    }
+
+    async function handleInteractionEnd(event) {
+        if (!isSelecting || isGameOver || interactionLocked) {
+            isSelecting = false; // Eğer kilitli veya oyun bittiyse seçimi yine de bitir
+            drawGrid(); // Vurguyu kaldır
+            return;
+        }
+        isSelecting = false; // Seçim bitti
+
+        if (selectedTiles.length >= 2) {
+            interactionLocked = true; // İşlem başlarken kilitle
+            currentComboMultiplier = 1; // Her yeni manuel birleştirmede komboyu sıfırla
+
+            const chainLength = selectedTiles.length;
+            const baseValue = currentSelectionValue;
+            const mergeValue = baseValue * 2;
+            const chainMultiplier = getChainMultiplier(chainLength);
+            let pointsEarned = baseValue * chainLength * chainMultiplier; // Zincir bonusu ile ilk puan
+
+            score += pointsEarned;
+            showScorePopup(pointsEarned, chainMultiplier > 1 ? chainMultiplier : 1);
+
+
+            const lastTile = selectedTiles[selectedTiles.length - 1];
+
+            // Seçili kutucukları temizle (sonuncusu hariç)
+            for (let k = 0; k < chainLength - 1; k++) {
+                 grid[selectedTiles[k].i][selectedTiles[k].j] = 0;
+            }
+            grid[lastTile.i][lastTile.j] = mergeValue; // Son kutucuğu güncelle
+
+            selectedTiles = []; // Seçimi temizle
+            drawGrid(); // Değişikliği göster
+            await new Promise(resolve => setTimeout(resolve, 50)); // Kısa bekleme
+
+            // --- Kombo Döngüsü Başlat ---
+            await handleCombos();
+            // --- Kombo Döngüsü Bitti ---
+
+            updateMaxScore();
+            checkWin(mergeValue); // Oyunu kazandı mı veya seviye atladı mı?
+
+            if (!isGameOver) {
+                if (checkGameOver()) { // Hamle kaldı mı?
+                     // Oyun bitti mesajı zaten checkGameOver içinde veriliyor
+                }
+            }
+            interactionLocked = false; // Tüm işlemler bitince kilidi aç
+        }
+
+        selectedTiles = []; // Seçimi her durumda sıfırla
+        currentSelectionValue = 0;
+        updateUI();
+        drawGrid(); // Son durumu çiz
+    }
+
+    // --- Yeni Mekanik Fonksiyonları ---
+
+    function getChainMultiplier(length) {
+        if (length >= 11) return 3;
+        if (length >= 8) return 2;
+        if (length >= 5) return 1.5;
+        return 1; // Varsayılan
+    }
+
+    async function activateBomb(r, c) {
+        if (interactionLocked || isGameOver) return;
+        interactionLocked = true; // Bomba patlarken kilitle
+
+        let pointsFromBomb = 0;
+        // 3x3 alanı temizle ve puan ekle
+        for (let i = Math.max(0, r - 1); i <= Math.min(GRID_SIZE - 1, r + 1); i++) {
+            for (let j = Math.max(0, c - 1); j <= Math.min(GRID_SIZE - 1, c + 1); j++) {
+                if (grid[i][j] > 0) { // Sadece değerli kutucuklardan puan al
+                   pointsFromBomb += grid[i][j];
+                }
+                grid[i][j] = 0; // Temizle (Bombanın kendisi dahil)
+            }
+        }
+
+        score += pointsFromBomb;
+        if (pointsFromBomb > 0) {
+            showScorePopup(pointsFromBomb, "💣"); // Bomba puanı göster
+        }
+
+        updateMaxScore();
+        drawGrid(); // Temizlenmiş hali göster
+        await new Promise(resolve => setTimeout(resolve, 150)); // Patlama efekti için bekle
+
+        // Bomba sonrası komboyu sıfırla ve yerçekimi/doldurma yap
+        currentComboMultiplier = 1;
+        await handleCombos(); // Bomba sonrası da kombo olabilir
+
+        if (!isGameOver) {
+            checkGameOver();
+        }
+        interactionLocked = false; // İşlem bitince kilidi aç
+        updateUI();
+        drawGrid();
+    }
+
+    async function handleCombos() {
+        let comboOccurred = true;
+        while (comboOccurred && !isGameOver) {
+            await applyGravityAndRefill(); // Önce düşür ve doldur
+            const merges = findAutoMerges(); // Otomatik birleşmeleri bul
+
+            if (merges.length > 0) {
+                comboOccurred = true;
+                currentComboMultiplier++; // Kombo çarpanını artır
+                let comboPoints = 0;
+
+                for (const merge of merges) {
+                    const { pos1, pos2, value } = merge;
+                    const newValue = value * 2;
+                    comboPoints += value * 2 * currentComboMultiplier; // Kombo puanı = Değer * 2 * Çarpan
+
+                    // Birleştirme (örn: pos1 kalır, pos2 silinir)
+                    grid[pos1.i][pos1.j] = newValue;
+                    grid[pos2.i][pos2.j] = 0;
+                }
+                score += comboPoints;
+                showScorePopup(comboPoints, currentComboMultiplier); // Kombo puanını göster
+                updateMaxScore();
+                drawGrid(); // Kombo birleşmesini göster
+                await new Promise(resolve => setTimeout(resolve, 150)); // Kombo adımı için bekleme
+
+                // Kombo sonrası en yüksek değeri kontrol et (seviye atlama/kazanma)
+                 let highestValue = 0;
+                 grid.forEach(row => row.forEach(val => highestValue = Math.max(highestValue, val)));
+                 checkWin(highestValue); // Kombo sonucu kazanma/seviye atlama olabilir
+
+            } else {
+                comboOccurred = false; // Otomatik birleşme bulunamadı, döngü biter
+            }
+        }
+         // Kombo bittiğinde veya hiç başlamadığında çarpanı UI'da sıfırla
+         currentComboMultiplier = 1;
+         updateUI(); // Kombo çarpanını güncelle
+    }
+
+
+    function findAutoMerges() {
+        const merges = [];
+        const marked = Array(GRID_SIZE).fill().map(() => Array(GRID_SIZE).fill(false));
+
+        // Önce dikey, sonra yatay kontrol (aynı anda ikisini işaretlememek için)
+        // Dikey Birleşmeler
+        for (let j = 0; j < GRID_SIZE; j++) {
+            for (let i = 0; i < GRID_SIZE - 1; i++) {
+                if (!marked[i][j] && !marked[i+1][j] && grid[i][j] !== 0 && grid[i][j] !== BOMB_TILE_VALUE && grid[i][j] === grid[i+1][j]) {
+                     // Alttakini (i+1) ana kabul et, üsttekini (i) sil
+                     merges.push({ pos1: {i: i+1, j: j}, pos2: {i: i, j: j}, value: grid[i][j] });
+                     marked[i][j] = true;
+                     marked[i+1][j] = true;
+                }
+            }
+        }
+         // Yatay Birleşmeler
+        for (let i = 0; i < GRID_SIZE; i++) {
+            for (let j = 0; j < GRID_SIZE - 1; j++) {
+                 if (!marked[i][j] && !marked[i][j+1] && grid[i][j] !== 0 && grid[i][j] !== BOMB_TILE_VALUE && grid[i][j] === grid[i][j+1]) {
+                     // Soldakini (j) ana kabul et, sağdakini (j+1) sil
+                     merges.push({ pos1: {i: i, j: j}, pos2: {i: i, j: j+1}, value: grid[i][j] });
+                     marked[i][j] = true;
+                     marked[i][j+1] = true;
+                 }
+            }
+        }
+
+        return merges;
+    }
+
+
+    function areTilesAdjacent(pos1, pos2) {
+        // Önceki kodla aynı
+        const di = Math.abs(pos1.i - pos2.i);
+        const dj = Math.abs(pos1.j - pos2.j);
+        return (di <= 1 && dj <= 1) && !(di === 0 && dj === 0);
+    }
+
+    // --- Oyun Durumu Kontrolleri (checkWin, checkGameOver öncekiyle benzer, isGameOver kontrolü eklenmiş) ---
+    function checkWin(currentHighestValue) {
+         if (isGameOver) return false;
+
+         // Oyun Kazanma
+         if (currentHighestValue >= FINAL_TARGET) {
+             isGameOver = true;
+             interactionLocked = true;
+             updateMaxScore();
+             setTimeout(()=> alert(`🎉 MUHTEŞEM! Oyunu kazandın! ${FINAL_TARGET} hedefine ulaştın! Skor: ${score}`), 100);
+             return true;
+         }
+
+         // Seviye Atlama
+         if (currentHighestValue >= targetNumber) {
+            level++;
+            baseNumber = Math.max(4, Math.floor(targetNumber / 8)); // Daha zorlu hale getir
+            targetNumber *= 2;
+
+            setTimeout(()=> alert(`🚀 Harika! Seviye ${level -1} tamamlandı! Yeni hedef: ${targetNumber}`), 100);
+            // Seviye atlayınca oyun devam eder.
+            updateUI(); // UI'da yeni hedefi göster
+            return true; // Seviye atlandı
+         }
+         return false; // Bir şey olmadı
+    }
+
+    function checkGameOver() {
+        if (isGameOver) return true;
+
+        // 1. Boş hücre var mı? Varsa oyun bitmez.
+        // 2. Birleştirme hamlesi var mı?
+        let hasMoves = false;
+        for (let i = 0; i < GRID_SIZE; i++) {
+            for (let j = 0; j < GRID_SIZE; j++) {
+                const currentValue = grid[i][j];
+                if (currentValue === 0) continue; // Boş hücre, hamle aramaya devam et
+                if (currentValue === BOMB_TILE_VALUE) {
+                    hasMoves = true; // Bomba varsa her zaman hamle var demektir.
+                    break;
+                }
+
+                // Komşuları kontrol et (8 yön)
+                for (let di = -1; di <= 1; di++) {
+                    for (let dj = -1; dj <= 1; dj++) {
+                        if (di === 0 && dj === 0) continue;
+                        const ni = i + di;
+                        const nj = j + dj;
+
+                        if (ni >= 0 && ni < GRID_SIZE && nj >= 0 && nj < GRID_SIZE) {
+                            if (grid[ni][nj] === currentValue) {
+                                hasMoves = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (hasMoves) break;
+                }
+                 if (hasMoves) break;
+            }
+            if (hasMoves) break;
+        }
+
+        if (!hasMoves) {
+            isGameOver = true;
+            interactionLocked = true;
+            updateMaxScore();
+            setTimeout(()=> alert(`😕 Oyun Bitti! Hamle kalmadı. Skor: ${score}`), 100);
+            return true; // Oyun bitti
+        }
+        return false; // Oyun devam ediyor
+    }
+
+    // --- Skor ve UI Güncelleme ---
+    function updateMaxScore() {
+        // Önceki kodla aynı
+        if (score > maxScore) {
+            maxScore = score;
+            localStorage.setItem('maxScore', maxScore);
+            maxScoreDisplay.textContent = maxScore;
+        }
+    }
+
+    function updateUI() {
+        // Önceki kodla aynı + Kombo
+        levelDisplay.textContent = level;
+        scoreDisplay.textContent = score;
+        targetDisplay.textContent = targetNumber;
+        comboMultiplierDisplay.textContent = currentComboMultiplier; // Kombo çarpanını güncelle
+        document.getElementById('maxScoreDisplay').textContent = maxScore;
+    }
+
+    // --- Oyun Akışı ---
+    function startGame() {
+        homeScreen.classList.add('hidden');
+        gameScreen.classList.remove('hidden');
+        level = 1;
+        score = 0;
+        baseNumber = 2;
+        targetNumber = INITIAL_TARGET;
+        isGameOver = false;
+        currentComboMultiplier = 1;
+        initializeGrid();
+        resizeCanvas(); // Önce boyutlandır
+        updateUI();     // Sonra UI'ı güncelle
+        drawGrid();     // En son çiz
+
+        // Başlangıçta hamle olup olmadığını kontrol et (çok nadir de olsa kilitli başlayabilir)
+        if(checkGameOver()) {
+            // Eğer başlangıçta hamle yoksa, tahtayı yeniden oluşturabiliriz.
+            // alert("Başlangıçta hamle yok, tahta yeniden oluşturuluyor.");
+            // initializeGrid(); drawGrid(); checkGameOver(); // Tekrar dene
+        };
+        interactionLocked = false; // Oyun başlarken kilit olmadığından emin ol
+    }
+
+    // --- Event Listeners (Öncekiyle aynı, interactionLocked kontrolü eklendi) ---
+    startGameBtn.addEventListener('click', startGame);
+    backToHomeBtn.addEventListener('click', () => {
+        gameScreen.classList.add('hidden');
+        homeScreen.classList.remove('hidden');
+        updateMaxScore();
+        updateUI();
+    });
+    howToPlayBtn.addEventListener('click', () => { howToPlayModal.style.display = 'flex'; });
+    closeModal.addEventListener('click', () => { howToPlayModal.style.display = 'none'; });
+    window.addEventListener('click', (e) => { if (e.target === howToPlayModal) { howToPlayModal.style.display = 'none'; }});
+
+    canvas.addEventListener('mousedown', handleInteractionStart);
+    canvas.addEventListener('mousemove', handleInteractionMove);
+    canvas.addEventListener('mouseup', handleInteractionEnd);
+    canvas.addEventListener('mouseleave', () => { if (isSelecting) { handleInteractionEnd(); } });
+    canvas.addEventListener('touchstart', handleInteractionStart, { passive: false });
+    canvas.addEventListener('touchmove', handleInteractionMove, { passive: false });
+    canvas.addEventListener('touchend', handleInteractionEnd);
+    canvas.addEventListener('touchcancel', () => { if (isSelecting) { handleInteractionEnd(); } });
+
+    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener('load', () => {
+        updateMaxScore();
+        updateUI();
+    });
+
+  </script>
+</body>
+</html>
